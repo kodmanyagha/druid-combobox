@@ -258,7 +258,9 @@ dependencies = [
 name = "druid-example-1"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "druid",
+ "thiserror",
 ]
 
 [[package]]

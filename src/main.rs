@@ -1,10 +1,12 @@
 pub mod data;
+pub mod widgets;
 
 use data::AppData;
 use druid::{
     widget::{Button, Flex, Label},
     AppLauncher, LocalizedString, PlatformError, Widget, WidgetExt, WindowDesc,
 };
+use widgets::combobox;
 
 fn main() -> Result<(), PlatformError> {
     let main_window = WindowDesc::new(ui_builder());
@@ -27,5 +29,10 @@ fn ui_builder() -> impl Widget<AppData> {
         .on_click(|_ctx, data: &mut AppData, _env| data.counter += 1)
         .padding(5.0);
 
-    Flex::column().with_child(label).with_child(button)
+    let combobox_1 = combobox::ComboBox::<String>::new();
+
+    Flex::column()
+        .with_child(label)
+        .with_child(button)
+        .with_child(combobox_1)
 }
