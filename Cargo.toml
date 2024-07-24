@@ -7,3 +7,9 @@ edition = "2021"
 anyhow = "1.0.86"
 druid = "0.8.3"
 thiserror = "1.0.63"
+
+druid-widget-nursery = { git = "https://github.com/linebender/druid-widget-nursery" }
+
+[patch.'https://github.com/linebender/druid'.druid]
+git = "https://github.com/linebender/druid"
+rev = "<copy the current druid rev from this repository's Cargo.toml>"
