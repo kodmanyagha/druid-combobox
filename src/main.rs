@@ -10,6 +10,7 @@ use widgets::combobox;
 
 fn main() -> Result<(), PlatformError> {
     let main_window = WindowDesc::new(ui_builder());
+
     let data = AppData {
         counter: 0,
         title: "App here".to_string(),
