@@ -1,17 +1,16 @@
-// Copyright 2019 the Druid Authors
-// SPDX-License-Identifier: Apache-2.0
-
-//! An example of a custom drawing widget.
-//! We draw an image, some text, a shape, and a curve.
-
 // On Windows platform, don't show a console when opening the app.
 #![windows_subsystem = "windows"]
+#![allow(unused_imports)]
 
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
 use std::env;
+use std::rc::Rc;
+use std::sync::Mutex;
 
 use druid::kurbo::BezPath;
 use druid::piet::{FontFamily, ImageFormat, InterpolationMode, Text, TextLayoutBuilder};
-use druid::widget::prelude::*;
+use druid::widget::{prelude::*, Container, Flex, Label, Split};
 use druid::{
     Affine, AppLauncher, Color, FontDescriptor, LocalizedString, Point, Rect, TextLayout,
     WindowDesc,
@@ -69,27 +68,33 @@ fn hsl_to_rgb(h: f64, s: f64, l: f64) -> (u8, u8, u8) {
         b = hue_to_rgb(p, q, h - 1. / 3.);
     }
 
-    return (
+    (
         (r * 255.).round() as u8,
         (g * 255.).round() as u8,
         (b * 255.).round() as u8,
-    );
+    )
 }
 
-impl Widget<String> for ColorPickerTutor {
-    fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, data: &String, env: &Env) {
-        info!("lifecycle");
+impl Widget<AppState> for ColorPickerTutor {
+    fn lifecycle(
+        &mut self,
+        ctx: &mut LifeCycleCtx,
+        event: &LifeCycle, //
+        data: &AppState,
+        env: &Env,
+    ) {
+        info!("lifecycle fn invoked");
     }
 
-    fn update(&mut self, ctx: &mut UpdateCtx, old_data: &String, data: &String, env: &Env) {
-        info!("update");
+    fn update(&mut self, ctx: &mut UpdateCtx, old_data: &AppState, data: &AppState, env: &Env) {
+        info!("update fn invoked");
     }
 
     fn layout(
         &mut self,
         ctx: &mut LayoutCtx,
         bc: &BoxConstraints,
-        data: &String,
+        data: &AppState,
         env: &Env,
     ) -> Size {
         info!("layout");
@@ -97,8 +102,8 @@ impl Widget<String> for ColorPickerTutor {
         self.size.clone()
     }
 
-    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut String, env: &Env) {
-        info!("event, {:?} {:?}", event, data);
+    fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut AppState, env: &Env) {
+        // info!("event, {:?} {:?}", event, data);
 
         match event {
             Event::WindowConnected => info!("Event::WindowConnected occured"),
@@ -125,7 +130,12 @@ impl Widget<String> for ColorPickerTutor {
             Event::MouseUp(mouse_up) => info!("Event::MouseUp occured, mouse_up: {:?}", mouse_up),
 
             Event::MouseMove(mouse_move) => {
-                info!("Event::MouseMove occured, mouse_move: {:?}", mouse_move)
+                info!("Event::MouseMove occured, mouse_move: {:?}", mouse_move);
+
+                *data.mouse_location.borrow_mut() = Rc::new(Box::new(Some(Point2d(
+                    mouse_move.pos.x as u8,
+                    mouse_move.pos.y as u8,
+                ))));
             }
 
             Event::Wheel(wheel) => info!("Event::Wheel occured, wheel: {:?}", wheel),
@@ -155,13 +165,47 @@ impl Widget<String> for ColorPickerTutor {
         }
     }
 
-    fn paint(&mut self, ctx: &mut PaintCtx, data: &String, env: &Env) {
-        //info!("paint");
-
+    fn paint(&mut self, ctx: &mut PaintCtx, data: &AppState, env: &Env) {
         let rgb = hsl_to_rgb(0.5, 0.5, 0.5);
         let rect = Rect::from_origin_size(Point::ORIGIN, self.size);
         ctx.fill(rect, &Color::rgb8(rgb.0, rgb.1, rgb.2));
     }
+}
+
+#[derive(Clone, Data, Debug)]
+struct Point2d(u8, u8);
+
+#[derive(Clone, Data, Default, Debug)]
+struct AppState {
+    pub mouse_location: Rc<Box<Option<Point2d>>>,
+    pub clicks: Rc<Box<Vec<Point2d>>>,
+}
+
+fn build_ui() -> impl Widget<AppState> {
+    Split::columns(
+        Container::new(
+            Flex::column()
+                .with_flex_child(Label::new("Example label 1"), 1.0)
+                .with_flex_child(Label::new("Example label 2"), 1.0),
+        )
+        .border(Color::grey(0.6), 2.0),
+        Container::new(
+            Flex::column()
+                .with_flex_child(
+                    Label::dynamic(|data: &AppState, _| {
+                        let mouse_location = *(*(data.mouse_location.clone())).clone();
+
+                        if let Some(loc) = mouse_location {
+                            return format!("Location: {:?}", loc);
+                        }
+
+                        "Mouse is out of the area.".to_string()
+                    }),
+                    2.0,
+                )
+                .with_flex_child(ColorPickerTutor::new(), 2.0),
+        ),
+    )
 }
 
 pub fn main() -> anyhow::Result<()> {
@@ -170,12 +214,11 @@ pub fn main() -> anyhow::Result<()> {
     dotenvy::dotenv()?;
     env_logger::init();
 
-    let window = WindowDesc::new(ColorPickerTutor::new()) //
-        .title(LocalizedString::new("Color picker tutor"));
+    let window = WindowDesc::new(build_ui()).title(LocalizedString::new("Color picker tutor"));
 
     AppLauncher::with_window(window)
         .log_to_console()
-        .launch("Druid + Piet".to_string())
+        .launch(AppState::default())
         .expect("launch failed");
 
     Ok(())
